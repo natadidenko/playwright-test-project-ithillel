@@ -1,95 +1,58 @@
 import { test, expect } from '@playwright/test';
-import { setupTestPage } from '../helpers/navigation';
+import { setupTestPage } from '../../src/utils/helperNavigation';
+import { RegistrationPage } from '../../src/pages/RegistrationPage';
 
-test.describe('Email field validation', () => {
+test.describe('Password and Re-enter Password field validation', () => {
+  let registrationPage;
+
   test.beforeEach(async ({ page, browserName }) => {
     await setupTestPage(page, browserName);
+    registrationPage = new RegistrationPage(page);
   });
 
-  test('Password field validation', async ({ page }) => {
-    const passwordField = page.locator('#signupPassword');
-    const passwordError = page.locator('#signupPassword ~ .invalid-feedback p');
+  const passwordTestCases = [
+    { password: '', error: 'Password required', valid: false, description: 'empty password' },
+    { password: 'Short1', error: 'Password has to be from 8 to 15 characters long and contain at least one integer, one capital, and one small letter', valid: false, description: 'short password' },
+    { password: 'NoDigitsHere', error: 'Password has to be from 8 to 15 characters long and contain at least one integer, one capital, and one small letter', valid: false, description: 'password without digit' },
+    { password: 'ValidPass1', valid: true, description: 'valid password' },
+    { password: 'A'.repeat(16), error: 'Password has to be from 8 to 15 characters long and contain at least one integer, one capital, and one small letter', valid: false, description: 'password too long' },
+    { password: '@@@@@@@@', error: 'Password has to be from 8 to 15 characters long and contain at least one integer, one capital, and one small letter', valid: false, description: 'password with only special characters' },
+  ];
 
-    // Перевірка порожнього пароля
-    try {
-      await passwordField.fill('');
-      await passwordField.blur();
-      await expect(passwordError).toHaveText('Password required');
-      await expect(passwordField).toHaveClass(/is-invalid/);
-      console.log("✅ Empty password validation passed.");
-    } catch (error) {
-      console.error("❌ Error during empty password validation: ", error);
-    }
-
-    // Перевірка пароля з недостатньою довжиною
-    try {
-      await passwordField.fill('Short1');
-      await passwordField.blur();
-      await expect(passwordError).toHaveText('Password has to be from 8 to 15 characters long and contain at least one integer, one capital, and one small letter');
-      await expect(passwordField).toHaveClass(/is-invalid/);
-      console.log("✅ Short password validation passed.");
-    } catch (error) {
-      console.error("❌ Error during short password validation: ", error);
-    }
-
-    // Перевірка пароля без цифри
-    try {
-      await passwordField.fill('NoDigitsHere');
-      await passwordField.blur();
-      await expect(passwordError).toHaveText('Password has to be from 8 to 15 characters long and contain at least one integer, one capital, and one small letter');
-      await expect(passwordField).toHaveClass(/is-invalid/);
-      console.log("✅ Password without digit validation passed.");
-    } catch (error) {
-      console.error("❌ Error during password without digit validation: ", error);
-    }
-
-    // Перевірка валідного пароля
-    try {
-      await passwordField.fill('ValidPass1');
-      await passwordField.blur();
-      await expect(passwordField).not.toHaveClass(/is-invalid/);
-      console.log("✅ Valid password check passed.");
-    } catch (error) {
-      console.error("❌ Error during valid password check: ", error);
-    }
+  passwordTestCases.forEach(({ password, error, valid, description }) => {
+    test(`Validates password: ${description}`, async () => {
+      await registrationPage.fillPassword(password);
+      if (valid) {
+        await registrationPage.expectPasswordValid();
+      } else {
+        await registrationPage.expectPasswordError(error);
+      }
+    });
   });
 
-  test('Re-enter Password field validation', async ({ page }) => {
-    const passwordField = page.locator('#signupPassword');
-    const repeatPasswordField = page.locator('#signupRepeatPassword');
-    const repeatPasswordError = page.locator('#signupRepeatPassword ~ .invalid-feedback p');
+  const repeatPasswordTestCases = [
+    { password: 'ValidPass1', repeatPassword: '', error: 'Re-enter password required', valid: false, description: 'empty re-enter password' },
+    { password: 'ValidPass1', repeatPassword: 'DifferentPass1', error: 'Passwords do not match', valid: false, description: 'passwords do not match' },
+    { password: 'ValidPass1', repeatPassword: 'ValidPass1', valid: true, description: 'passwords match' },
+    { password: 'Short1', repeatPassword: 'Short1', error: 'Password has to be from 8 to 15 characters long and contain at least one integer, one capital, and one small letter', valid: false, description: 'short repeat password' },
+    { password: '@@@@@@@@', repeatPassword: '@@@@@@@@', error: 'Password has to be from 8 to 15 characters long and contain at least one integer, one capital, and one small letter', valid: false, description: 'repeat password with special characters' },
+  ];
 
-    // Перевірка порожнього поля повторного введення пароля
-    try {
-      await repeatPasswordField.fill('');
-      await repeatPasswordField.blur();
-      await expect(repeatPasswordError).toHaveText('Re-enter password required');
-      await expect(repeatPasswordField).toHaveClass(/is-invalid/);
-      console.log("✅ Empty re-enter password validation passed.");
-    } catch (error) {
-      console.error("❌ Error during empty re-enter password validation: ", error);
-    }
+  repeatPasswordTestCases.forEach(({ password, repeatPassword, error, valid, description }) => {
+    test(`Validates re-enter password: ${description}`, async () => {
+      await registrationPage.fillPassword(password);
+      await registrationPage.fillRepeatPassword(repeatPassword || ''); // Явно передаємо пустий рядок, якщо значення undefined
+      if (valid) {
+        await registrationPage.expectRepeatPasswordValid();
+      } else {
+        await registrationPage.expectRepeatPasswordError(error);
+      }
+    });
+  });
 
-    // Перевірка невідповідності паролів
-    try {
-      await passwordField.fill('ValidPass1');
-      await repeatPasswordField.fill('DifferentPass1');
-      await repeatPasswordField.blur();
-      await expect(repeatPasswordError).toHaveText('Passwords do not match');
-      await expect(repeatPasswordField).toHaveClass(/is-invalid/);
-      console.log("✅ Password mismatch validation passed.");
-    } catch (error) {
-      console.error("❌ Error during password mismatch validation: ", error);
-    }
-
-    // Перевірка співпадіння паролів
-    try {
-      await repeatPasswordField.fill('ValidPass1');
-      await repeatPasswordField.blur();
-      await expect(repeatPasswordField).not.toHaveClass(/is-invalid/);
-      console.log("✅ Password match validation passed.");
-    } catch (error) {
-      console.error("❌ Error during password match validation: ", error);
-    }
+  test('Register button should remain disabled after entering valid password and repeat password', async () => {
+    await registrationPage.fillPassword('ValidPass1');
+    await registrationPage.fillRepeatPassword('ValidPass1');
+    await registrationPage.expectRegisterButtonDisabled();
   });
 });
