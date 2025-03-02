@@ -1,60 +1,47 @@
 import { test, expect } from '@playwright/test';
+import { setupTestPage } from '../../src/utils/helperNavigation';
+import { RegistrationPage } from '../../src/pages/RegistrationPage';
 
 // Функція для генерації унікальних даних з префіксом
 const generateUniqueEmail = () => `aqa-${Date.now()}@example.com`;
 
 test.describe('Positive registration scenario', () => {
+  let registrationPage;
+
   test.beforeEach(async ({ page, browserName }) => {
-    // Налаштування заголовків авторизації для всіх браузерів
-    await page.setExtraHTTPHeaders({
-      'Authorization': 'Basic ' + Buffer.from('guest:welcome2qauto').toString('base64')
-    });
+    // Налаштування сторінки та навігації
+    await setupTestPage(page, browserName);
 
-    try {
-      // Перехід на сторінку
-      await page.goto('https://qauto.forstudy.space/', { waitUntil: 'networkidle' });
-      await page.waitForLoadState('networkidle');
-    } catch (error) {
-      console.error("Error during page load: ", error);
-    }
-
-    if (browserName === 'firefox') {
-      await page.evaluate(() => window.scrollBy(0, window.innerHeight));
-    }
-
-    await page.waitForSelector('button:has-text("Sign up")', { state: 'visible', timeout: 15000 });
-    await page.click('button:has-text("Sign up")', { force: true });
+    // Створюємо екземпляр сторінки реєстрації
+    registrationPage = new RegistrationPage(page);
   });
 
-  test('Successful registration', async ({ page }) => {
-    // Заповнення поля "Name"
-    await page.fill('#signupName', 'John');
-    await page.locator('#signupName').blur(); // Додаємо втрату фокусу
-    await expect(page.locator('#signupName')).toHaveCSS('border-color', 'rgb(206, 212, 218)');
+  test('Successful registration', async () => {
+    // Генерація унікального email
+    const email = generateUniqueEmail();
 
-    // Заповнення поля "Last Name"
-    await page.fill('#signupLastName', 'Doe');
-    await expect(page.locator('#signupLastName')).toHaveCSS('border-color', 'rgb(206, 212, 218)');
+    // Заповнення форми через методи з RegistrationPage
+    await registrationPage.fillName('John');
+    await registrationPage.fillLastName('Doe');
+    await registrationPage.fillEmail(email);
+    await registrationPage.fillPassword('Valid1Pass');
+    await registrationPage.fillRepeatPassword('Valid1Pass');
 
-    // Заповнення поля "Email"
-    const email = generateUniqueEmail();  // Генерація унікальної email з префіксом
-    await page.fill('#signupEmail', email);
-    await expect(page.locator('#signupEmail')).toHaveCSS('border-color', 'rgb(206, 212, 218)');
+    // Перевірка, що всі поля валідні
+    await registrationPage.expectNameValid();
+    await registrationPage.expectLastNameValid();
+    await registrationPage.expectEmailValid();
+    await registrationPage.expectPasswordValid();
+    await registrationPage.expectRepeatPasswordValid();
 
-    // Заповнення поля "Password"
-    await page.fill('#signupPassword', 'Valid1Pass');
-    await expect(page.locator('#signupPassword')).toHaveCSS('border-color', 'rgb(206, 212, 218)');
-
-    // Заповнення поля "Re-enter Password"
-    await page.fill('#signupRepeatPassword', 'Valid1Pass');
-    await expect(page.locator('#signupRepeatPassword')).toHaveCSS('border-color', 'rgb(206, 212, 218)');
-
-    // Перевірка, що кнопка активна після заповнення
-    const registerButton = page.locator('button:has-text("Register")');
+    // Перевірка, що кнопка Register активна
+    const registerButton = registrationPage.registerButton;
     await expect(registerButton).toBeEnabled();
 
-    // Надсилання форми та перевірка редиректу
+    // Надсилання форми
     await registerButton.click();
-    await expect(page).toHaveURL('https://qauto.forstudy.space/panel/garage');
+
+    // Перевірка редиректу після реєстрації
+    await expect(registrationPage.page).toHaveURL('https://qauto.forstudy.space/panel/garage');
   });
 });
