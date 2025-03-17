@@ -1,21 +1,26 @@
 // @ts-check
 import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 import path from 'path';
 
-// Завантажуємо .env файл
-dotenv.config({ path: path.resolve(__dirname, `.env`) });
+// Отримуємо __dirname в ES-модулях
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Отримуємо змінну оточення NODE_ENV для визначення середовища (qa або prod)
+// Завантажуємо .env файл
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+
+// Отримуємо змінну середовища (qa або prod)
 const ENV = process.env.NODE_ENV || 'qa';
 
-// Визначаємо базову URL та дані авторизації в залежності від середовища
-const baseURL = process.env[`BASE_URL_${ENV}`];
-const username = process.env[`HTTP_CREDENTIALS_USERNAME_${ENV}`];
-const password = process.env[`HTTP_CREDENTIALS_PASSWORD_${ENV}`];
+// Витягуємо змінні з .env
+const baseURL = process.env[`BASE_URL_${ENV}`] || 'https://qauto.forstudy.space';
+const username = process.env[`HTTP_CREDENTIALS_USERNAME_${ENV}`] || '';
+const password = process.env[`HTTP_CREDENTIALS_PASSWORD_${ENV}`] || '';
 
-if (!baseURL || !username || !password) {
-  throw new Error(`Environment variables for ${ENV} are not properly set.`);
+// Перевіряємо, чи всі змінні визначені
+if (!baseURL) {
+  throw new Error(`BASE_URL_${ENV} is not set in the .env file.`);
 }
 
 /**
@@ -33,33 +38,25 @@ export default defineConfig({
     headless: true,
     trace: 'on-first-retry',
     timeout: 60000,
-    httpCredentials: {
-      username: username,
-      password: password,
-    },
+    storageState: 'storageState.json', // Використовуємо збережений стан сесії
+    httpCredentials: username && password ? { username, password } : undefined,
   },
   projects: [
     {
       name: ENV,
-      use: {
-        baseURL,
-        httpCredentials: {
-          username: username,
-          password: password,
-        },
-      },
+      use: { baseURL, storageState: 'storageState.json' }, // Використання storageState
     },
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], storageState: 'storageState.json' },
     },
     {
       name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      use: { ...devices['Desktop Firefox'], storageState: 'storageState.json' },
     },
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: { ...devices['Desktop Safari'], storageState: 'storageState.json' },
     },
   ],
 });
