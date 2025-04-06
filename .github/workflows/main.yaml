@@ -1,0 +1,27 @@
+name: Playwright Tests in Docker
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  playwright-run:
+    runs-on: ubuntu-latest
+
+    container:
+      image: mcr.microsoft.com/playwright:v1.39.0-jammy
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        run: npx playwright test
